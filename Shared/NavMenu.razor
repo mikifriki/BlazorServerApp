@@ -42,20 +42,28 @@
         string[] ips = await MachineService.GetMachines();
         foreach (string ip in ips)
         {
-            Machine tempMachine = new Machine { MachineIp = ip };
             HttpClient client = ClientFactory.CreateClient();
-            HttpResponseMessage response = await client.GetAsync(string.Format(baseurl, ip));
-            response.EnsureSuccessStatusCode();
-            tempMachine.MachineName = await response.Content.ReadAsStringAsync();
-            machines.Add(tempMachine);
+
+            Console.WriteLine(string.Format(baseurl, ip));
+            // Should be moved into its own service.
+            // create custom http
+            try
+            {
+
+                HttpResponseMessage response = await client.GetAsync(string.Format(baseurl, ip));
+                if (response.IsSuccessStatusCode)
+                {
+                    Machine tempMachine = new Machine { MachineIp = ip };
+                    tempMachine.MachineName = await response.Content.ReadAsStringAsync();
+                    machines.Add(tempMachine);
+                }
+            }
+            catch (Exception e)
+            {
+                // Block of code to handle errors
+            }
         }
-        if (machines.Count != 0)
-        {
-            shouldRender = true;
-        }
-        else
-        {
-            shouldRender = false;
-        }
+
+        shouldRender = true;
     }
 }
