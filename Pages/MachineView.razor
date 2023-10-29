@@ -1,4 +1,4 @@
-﻿@page "/{machine?}/{location?}"
+﻿@page "/{machine?}/{location?}/"
 @implements IDisposable
 @inject NavigationManager NavigationManager
 @inject IHttpClientFactory ClientFactory
@@ -8,13 +8,30 @@
 <h1>Hello, world!</h1>
 
 <div class="card">
-    <div class="card-header">
-        @Machine - Online @cpuTemp
+    <div class="card-header" style="color: green;">
+        @Machine - Online @cpuTemp°C
     </div>
     <div class="card-body">
-        <h5 class="card-title">Special title treatment</h5>
-        <p class="card-text">With supporting text below as a natural lead-in to additional content.</p>
-        <a href="#" class="btn btn-primary">Go somewhere</a>
+        <p class="card-text">Total Memory: @totalMemory</p>
+        <p class="card-text">Available Memory: @availableMemory</p>
+        <p class="card-text">Total Storage: @totalStorage GB</p>
+        <p class="card-text">Available Storage: @availableStorage GB</p>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th scope="col">Running processes</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td style="color: green;">
+                        @runningProcess
+                    </td>
+                </tr>
+            </tbody>
+
+
+        </table>
     </div>
 </div>
 
@@ -27,8 +44,8 @@
     public string? Location { get; set; }
     private bool shouldRender;
     protected override bool ShouldRender() => shouldRender;
-    private string cpuTemp = "0";
-
+    private string cpuTemp = "0", totalMemory = "", availableMemory = "", totalStorage = "", availableStorage = "",
+    runningProcess = "";
     protected override void OnInitialized()
     {
         Machine = Machine ?? "none";
@@ -38,38 +55,45 @@
 
     protected override async Task OnParametersSetAsync()
     {
-        await getValue();
+        cpuTemp = await Task.Run(() => getSystemInfo("cpu"));
+        totalMemory = await Task.Run(() => getSystemInfo("memTotal"));
+        availableMemory = await Task.Run(() => getSystemInfo("memAvailable"));
+        totalStorage = await Task.Run(() => getSystemInfo("totalStorage"));
+        availableStorage = await Task.Run(() => getSystemInfo("availableStorage"));
+        runningProcess = await Task.Run(() => getSystemProcess("./7Days"));
+        shouldRender = true;
     }
 
     async void LocationChanged(object sender, LocationChangedEventArgs e)
     {
         string navigationMethod = e.IsNavigationIntercepted ? "HTML" : "code";
-        await getValue();
         Console.WriteLine($"Notified of navigation via {navigationMethod} to {e.Location}");
     }
-
-    async Task getValue()
+    async Task<string> getSystemInfo(string requestEndpoint)
     {
-        if (Location == null || Location.Length == 0)
-        {
-            shouldRender = true;
-            return;
-        }
-        string request = $"http://{Location}:8080/cpu";
+        string data = string.Empty;
+        string request = $"http://{Location}:8080/{requestEndpoint}";
         HttpClient client = ClientFactory.CreateClient();
         HttpResponseMessage response = await client.GetAsync(request);
         if (response.IsSuccessStatusCode)
         {
             response.EnsureSuccessStatusCode();
-            cpuTemp = await response.Content.ReadAsStringAsync();
-            shouldRender = true;
+            data = await response.Content.ReadAsStringAsync();
         }
-        else
+        return data;
+    }
+    async Task<string> getSystemProcess(string process)
+    {
+        string data = string.Empty;
+        string request = $"http://{Location}:8080/getProccessData?process={process}";
+        HttpClient client = ClientFactory.CreateClient();
+        HttpResponseMessage response = await client.GetAsync(request);
+        if (response.IsSuccessStatusCode)
         {
-            Console.WriteLine("test2");
-            shouldRender = true;
+            response.EnsureSuccessStatusCode();
+            data = await response.Content.ReadAsStringAsync();
         }
-
+        return data;
     }
 
     void IDisposable.Dispose()

@@ -17,7 +17,7 @@
         @foreach (Machine machine in machines)
         {
             <div class="nav-item px-3">
-                <NavLink class="nav-link" href="@($"{machine.MachineName}/{machine.MachineIp}")">
+                <NavLink class="nav-link" href="@($"{machine.MachineName}/{machine.MachineIp}/")">
                     <span class="oi oi-home" aria-hidden="true"></span> @machine.MachineName
                 </NavLink>
             </div>
@@ -60,7 +60,7 @@
             }
             catch (Exception e)
             {
-                // Block of code to handle errors
+                Console.WriteLine(e.Message);
             }
         }
 
