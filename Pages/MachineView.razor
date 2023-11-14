@@ -1,17 +1,19 @@
 ﻿@page "/{machine?}/{location?}/"
-@implements IDisposable
 @inject NavigationManager NavigationManager
 @inject IHttpClientFactory ClientFactory
 
 <PageTitle>Index</PageTitle>
 
-<h1>Hello, world!</h1>
+<h1>
+    @Machine
+</h1>
 
 <div class="card">
     <div class="card-header" style="color: green;">
-        @Machine - Online @cpuTemp°C
+        CPU Temp: @cpuTemp°C - @localIp
     </div>
     <div class="card-body">
+        <p class="card-text">Os Info: @osInfo</p>
         <p class="card-text">Total Memory: @totalMemory</p>
         <p class="card-text">Available Memory: @availableMemory</p>
         <p class="card-text">Total Storage: @totalStorage GB</p>
@@ -19,18 +21,30 @@
         <table class="table">
             <thead>
                 <tr>
-                    <th scope="col">Running processes</th>
+                    <th scope="col">Running processes TOP</th>
                 </tr>
             </thead>
             <tbody>
                 <tr>
-                    <td style="color: green;">
+                    <td>
                         @runningProcess
                     </td>
                 </tr>
             </tbody>
-
-
+        </table>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th scope="col">Running processes PM2</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>
+                        @pm2Process
+                    </td>
+                </tr>
+            </tbody>
         </table>
     </div>
 </div>
@@ -44,13 +58,18 @@
     public string? Location { get; set; }
     private bool shouldRender;
     protected override bool ShouldRender() => shouldRender;
-    private string cpuTemp = "0", totalMemory = "", availableMemory = "", totalStorage = "", availableStorage = "",
-    runningProcess = "";
+    private string cpuTemp = "0", osInfo = "", totalMemory = "", availableMemory = "", totalStorage = "", availableStorage =
+    "",
+    runningProcess = "", localIp = "", pm2Process = "";
+    struct Sysvariable
+    {
+        public const string pm2 = "getPm2Process?index=";
+        public const string top = "getProccessData?process=";
+    }
     protected override void OnInitialized()
     {
         Machine = Machine ?? "none";
         Location = Location ?? "";
-        NavigationManager.LocationChanged += LocationChanged;
     }
 
     protected override async Task OnParametersSetAsync()
@@ -60,15 +79,13 @@
         availableMemory = await Task.Run(() => getSystemInfo("memAvailable"));
         totalStorage = await Task.Run(() => getSystemInfo("totalStorage"));
         availableStorage = await Task.Run(() => getSystemInfo("availableStorage"));
-        runningProcess = await Task.Run(() => getSystemProcess("./7Days"));
+        osInfo = await Task.Run(() => getSystemInfo("kernelInfo"));
+        runningProcess = await Task.Run(() => getSystemProcess(Sysvariable.top, "./7Days"));
+        pm2Process = await Task.Run(() => getSystemProcess(Sysvariable.pm2, "BopBot"));
+        localIp = await Task.Run(() => getSystemInfo("./ip"));
         shouldRender = true;
     }
 
-    async void LocationChanged(object sender, LocationChangedEventArgs e)
-    {
-        string navigationMethod = e.IsNavigationIntercepted ? "HTML" : "code";
-        Console.WriteLine($"Notified of navigation via {navigationMethod} to {e.Location}");
-    }
     async Task<string> getSystemInfo(string requestEndpoint)
     {
         string data = string.Empty;
@@ -82,10 +99,10 @@
         }
         return data;
     }
-    async Task<string> getSystemProcess(string process)
+    async Task<string> getSystemProcess(string processManager, string process)
     {
         string data = string.Empty;
-        string request = $"http://{Location}:8080/getProccessData?process={process}";
+        string request = $"http://{Location}:8080/{processManager}{process}";
         HttpClient client = ClientFactory.CreateClient();
         HttpResponseMessage response = await client.GetAsync(request);
         if (response.IsSuccessStatusCode)
@@ -96,10 +113,5 @@
         return data;
     }
 
-    void IDisposable.Dispose()
-    {
-        // Unsubscribe from the event when our component is disposed
-        NavigationManager.LocationChanged -= LocationChanged;
-    }
 
 }
